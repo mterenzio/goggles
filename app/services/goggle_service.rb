@@ -1,4 +1,28 @@
 class GoggleService
+  attr_accessor :instructions
+
+  def initialize(url, text: nil, file_name: nil)
+    @url = url
+    if text.present?
+      instuction_strs = text.split("\n")
+      self.instructions = instuction_strs.map { |str| GoggleInstruction.new(str) }
+    elsif file_name.present?
+      self.instructions = File.foreach(file_name).map do |line|
+        GoggleInstruction.new(line)
+      end
+    end
+  end
+
+  def result
+    test_results = instructions.map { |inst| inst.test(@url) }
+    test_results.reject! { |r| r.nil? }
+    if test_results.empty?
+      return 0
+    else
+      return test_results.sort.last[1]
+    end
+  end
+
   class GoggleInstruction
     attr_accessor :options, :pattern, :action
     def initialize(instruction_str)
@@ -8,8 +32,8 @@ class GoggleService
     def parse(instruction_str)
       # split on $ to get options
       pattern_str, options_str = instruction_str.split("$")
-      parse_options(options_str) if options_str.present?
       parse_pattern(pattern_str)
+      parse_options(options_str) if options_str.present?
     end
 
     # tests the instruction against a url and returns the action if the instruction applies
@@ -57,8 +81,8 @@ class GoggleService
         [key.to_sym, value]
       end.to_h
       actions = options.slice(:boost, :downrank, :discard)
-      setup_action(options)
       self.options = options.slice(:site, :inurl, :intitle, :indescription, :incontent)
+      setup_action(options)
       self.options[:inurl] = true if options.slice(:inurl, :intitle, :indescription, :incontent).blank?
     end
 
@@ -68,18 +92,22 @@ class GoggleService
         case actions.first[0]
         when :boost
           if actions[:boost].present?
-            self.action = actions[:boost].to_i
+            self.action = ["o", actions[:boost].to_i]
           else
-            self.action = 1
+            self.action = ["o", 1]
           end
         when :downrank
           if actions[:downrank].present?
-            self.action = -actions[:downrank].to_i
+            self.action = ["d", -actions[:downrank].to_i]
           else
-            self.action = -1
+            self.action = ["d", -1]
           end
         when :discard
-          self.action = 0
+          if self.options.empty? && self.pattern == //
+            self.action = ["X"]
+          else
+            self.action = ["x"]
+          end
         end
       end
     end

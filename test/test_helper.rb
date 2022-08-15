@@ -10,4 +10,7 @@ class ActiveSupport::TestCase
   fixtures :all
 
   # Add more helper methods to be used by all tests here...
+  def file_name name
+    "#{Rails.root}/test/fixtures/files/#{name}"
+  end
 end
